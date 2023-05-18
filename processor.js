@@ -7,7 +7,7 @@ export async function* processResources(resourceGenerator, configIn) {
   ["vars", "filters", "columns"].forEach((s) => {
     config[s] &&
       config[s].forEach((r) => {
-        r.$evaluate = fhirpath.compile(r.expr);
+        r.$evaluate = fhirpath.compile(preprocessExpression(r.expr));
         r.whenMultiple = r.whenMultiple || "error";
       });
   });
@@ -17,6 +17,16 @@ export async function* processResources(resourceGenerator, configIn) {
       yield* extractColumns(resource, config);
     }
   }
+}
+
+function preprocessExpression(expr) {
+	return expr
+	  //handle getId function by splitting reference strings
+	  .replace(".getId()", ".reference.split('/').last()")
+	  //partial typeOf support to cover common use case
+	  .replace(/\.ofType\((\w)([^)]+)\)/g, (m, firstChar, typeName) => {
+		  return firstChar.toUpperCase() + typeName
+	  })
 }
 
 function filterResource(resource, config, context) {
